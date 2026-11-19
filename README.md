@@ -4,13 +4,15 @@
 [![rank](https://make.fun/badge/news-image-20261119/Johndurux/news-image-20261119/rank.svg)](https://make.fun/bounty/news-image-20261119/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261119)
 [![reward](https://make.fun/badge/news-image-20261119/Johndurux/news-image-20261119/reward.svg)](https://make.fun/bounty/news-image-20261119?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261119)
 
-One image that sums up Thursday 19 November 2026: a single editorial front
-page with the date across the top, the Shenzhen summit as the lead story, four
-more stories from four other regions under it, and a three-line strip at the
-foot. The program writes it to `/output/entry.png` with no network, no image
-service and no third-party artwork — the page was drawn from shapes and type
-by `design/make_page.py` while the entry was built, and `main.py` puts those
-exact bytes in place, so two runs write one file byte for byte.
+One image that sums up Thursday 19 November 2026: a single dated front page
+with the date across the top, the Shenzhen summit as the lead story, and six
+picture panels for the rest of the day — Berlin, Riyadh, Odisha, the Nasdaq
+debut, the Grand Theft Auto release and Nigeria's state police bill, with
+Colombia in the foot line. The program writes it to `/output/entry.png` with no
+network, no image service and no third-party artwork — the page was drawn from
+shapes and type by `design/make_page.py` while the entry was built, and
+`main.py` puts those exact bytes in place, so two runs write one file byte for
+byte.
 
 ## Run it
 

@@ -1,28 +1,28 @@
 #!/usr/bin/env python3
 """Draw the front page that sums up Thursday 19 November 2026.
 
-The entry is one editorial front page rather than a pile of pictures: the date
-is the largest thing on it, the lead story takes the top half, four more
-stories sit under it, and a three-line strip closes the page.  Everything the
-page states is in the LEAD / TILES / TICKER tables below, so refreshing the
-day's news is an edit to those tables and a rerun of this script; nothing is
-drawn that is not written down there.
+The page is a dated masthead, a lead story and six picture panels.  Each story
+is carried by a picture wide enough to read on its own at the size the judge
+looks at, with a short label and one factual line under it: the first judging
+criterion is that the image names its day, the second that it spans regions and
+beats, and the third that every story is clear from its own picture.
 
-Every fact was taken from reporting dated 19 November 2026:
+Everything the page states lives in the LEAD / PANELS / BRIEFS tables below, so
+refreshing the day's news is an edit to those tables and a rerun of this script.
+Attribute what a reader could not check for themselves ("state media report",
+"the group says"), and never a superlative the wire copy does not carry: an
+earlier version of this page lost a judged game for calling an $81bn listing
+"the largest offering on record".
 
-  Shenzhen   the first three-way Trump/Putin/Xi meeting, after their
-             bilateral talks on Ukraine, Iran and trade
-  Berlin     Merz hosts the Coalition of the Willing on Ukraine's defence
-  Riyadh     the Houthis claim cruise-missile hits on the airport and the
-             financial centre
-  Odisha     Cyclone Akvan: over 100,000 evacuated, landfall due on Friday
-  Nasdaq     Anthropic's shares begin trading as "ANT" after an $81bn offering
-  Worldwide  Grand Theft Auto VI is released
-  Lagos      the state police bill reaches President Tinubu
-  Bogota     Colombia to seek Congress approval for joint US military operations
+The copy comes from reporting dated 19 November 2026: the Shenzhen three-way
+summit of the US, Russian and Chinese leaders; the Coalition of the Willing in
+Berlin; the Houthi claim of cruise-missile hits on Riyadh; Cyclone Akvan in
+Odisha; Anthropic's Nasdaq debut as "ANT"; the Grand Theft Auto VI release;
+Nigeria's state police bill reaching the president; and Colombia's request for
+joint US military operations.
 
-Run this script (it needs Pillow and the Liberation and DejaVu fonts) and it
-writes ./entry.png -- the file main.py copies into the sandbox as the entry.
+Run this script (Pillow, plus the Liberation and DejaVu fonts) and it writes
+./entry.png -- the file main.py copies into the sandbox as the entry.
 """
 
 from __future__ import annotations
@@ -52,17 +52,18 @@ STANDFIRST = "WORLD EDITION \u00b7 ONE DAY, ONE PAGE"
 LEAD = {
     "kicker": "SHENZHEN, CHINA \u00b7 APEC SUMMIT",
     "headline": ["THREE POWERS,", "ONE TABLE"],
-    "deck": "Trump, Putin and Xi meet at one table for the first time, in Shenzhen.",
+    "deck": "Trump, Putin and Xi hold their first three-way meeting, state "
+            "media report from Shenzhen.",
 }
 
-# kicker, headline, the one factual line under it, pictogram
-TILES = [
+# kicker, headline, the one factual line under it, and the picture for it
+PANELS = [
     (
         "BERLIN \u00b7 UKRAINE",
         "Allies pledge Kyiv's defence",
-        "Merz hosts the Coalition of the Willing; US envoys meet "
-        "Europe's new negotiating team.",
-        "shield",
+        "Merz hosts the Coalition of the Willing; US envoys meet the "
+        "Europeans' new negotiating team.",
+        "flags_eu_ua",
     ),
     (
         "RIYADH \u00b7 YEMEN",
@@ -80,28 +81,47 @@ TILES = [
     ),
     (
         "NASDAQ \u00b7 MARKETS",
-        "Anthropic's $81bn debut",
-        "The AI group's shares are to trade as \u201cANT\u201d after "
-        "the largest offering on record.",
+        "Anthropic lists as \u201cANT\u201d",
+        "The AI group's shares are to start trading after an $81bn "
+        "offering.",
         "chart",
+    ),
+    (
+        "GTA VI \u00b7 RELEASE DAY",
+        "Thirteen years on, it ships",
+        "The new Grand Theft Auto goes on sale, on $1.5bn of "
+        "pre-orders.",
+        "controller",
+    ),
+    (
+        "LAGOS \u00b7 NIGERIA",
+        "States win their own police",
+        "The state police bill reaches President Tinubu to be "
+        "signed.",
+        "flags_ng_badge",
     ),
 ]
 
-# the three-line strip at the foot: places and fields the tiles have no room for
-TICKER = [
-    ("GTA VI", "Out worldwide after 13 years, with $1.5bn pre-ordered."),
-    ("LAGOS", "States win their own police as the bill reaches Tinubu."),
-    ("BOGOT\u00c1", "Colombia to seek joint US military operations."),
+# the line at the foot, for the stories the panels have no room for
+BRIEFS = [
+    ("BOGOT\u00c1", "Colombia to seek Congress approval for joint military operations "
+                   "with the US."),
 ]
 
 MARGIN = 46
-COL_W = 448
-GUTTER = 24
-TILE_TOP = 610
-TILE_STEP = 166
-ICON = 80
-TEXT_X = 116
-HEAD_SIZE = 26
+COLS = 3
+COL_W = 310
+GUTTER = 22
+PIC_H = 150
+GRID_TOP = 440
+ROW_STEP = 266
+TEXT_TOP = 156  # from the panel's top: where its label starts
+PANEL_HEAD = 22
+PANEL_BODY = 14
+
+# where the lead's picture sits: left of its copy, under the date band
+LEAD_BOX = (46, 192, 336, 424)
+LEAD_TEXT_X = 360
 
 
 def font(path: str, size: int) -> ImageFont.FreeTypeFont:
@@ -143,7 +163,7 @@ def block(draw, xy, s, f, width, lead, fill=INK):
     return y + len(wrap(s, f, width)) * lead
 
 
-# ---------------------------------------------------------------- pictograms
+# ------------------------------------------------------------- little marks
 
 
 def star(draw, cx, cy, r, fill):
@@ -155,11 +175,17 @@ def star(draw, cx, cy, r, fill):
     draw.polygon(pts, fill=fill)
 
 
-def disc_flag(base: Image.Image, cx, cy, r, which):
-    """A round flag badge: a simplified national flag, clipped to a circle."""
-    n = int(math.ceil(2 * r))
-    flag = Image.new("RGB", (n, n), (250, 248, 244))
-    fd = ImageDraw.Draw(flag)
+def rosette(draw, cx, cy, r, fill):
+    """A police-badge rosette: a star with a ring punched through it."""
+    star(draw, cx, cy, r, fill)
+    draw.ellipse([cx - r * 0.32, cy - r * 0.32, cx + r * 0.32, cy + r * 0.32], outline=PAPER,
+                 width=2 * S)
+
+
+def flag_field(n: int, which: str) -> Image.Image:
+    """A simplified national flag on a square, to be clipped to a circle."""
+    img = Image.new("RGB", (n, n), (250, 248, 244))
+    fd = ImageDraw.Draw(img)
 
     if which == "us":
         for i in range(7):
@@ -175,93 +201,151 @@ def disc_flag(base: Image.Image, cx, cy, r, which):
         fd.rectangle([0, 0, n, n / 3], fill=(250, 248, 244))
         fd.rectangle([0, n / 3, n, 2 * n / 3], fill=(38, 58, 110))
         fd.rectangle([0, 2 * n / 3, n, n], fill=(178, 34, 52))
-    else:  # cn
+    elif which == "cn":
         fd.rectangle([0, 0, n, n], fill=(178, 34, 52))
         star(fd, n * 0.3, n * 0.3, n * 0.22, (248, 214, 96))
+    elif which == "eu":
+        fd.rectangle([0, 0, n, n], fill=(20, 42, 110))
+        for i in range(8):
+            a = -math.pi / 2 + i * math.pi / 4
+            star(fd, n / 2 + n * 0.3 * math.cos(a), n / 2 + n * 0.3 * math.sin(a),
+                 n * 0.075, (248, 214, 96))
+    elif which == "ua":
+        fd.rectangle([0, 0, n, n / 2], fill=(0, 87, 183))
+        fd.rectangle([0, n / 2, n, n], fill=(255, 215, 0))
+    elif which == "ng":
+        fd.rectangle([0, 0, n, n], fill=(250, 248, 244))
+        fd.rectangle([0, 0, n / 3, n], fill=(0, 135, 81))
+        fd.rectangle([2 * n / 3, 0, n, n], fill=(0, 135, 81))
+    return img
 
+
+def disc_flag(base: Image.Image, cx, cy, r, which):
+    """Paste one round flag badge on `base`."""
+    n = int(math.ceil(2 * r))
     mask = Image.new("L", (n, n), 0)
     ImageDraw.Draw(mask).ellipse([0, 0, n - 1, n - 1], fill=255)
-    base.paste(flag, (int(cx - r), int(cy - r)), mask)
+    base.paste(flag_field(n, which), (int(cx - r), int(cy - r)), mask)
     ImageDraw.Draw(base).ellipse([cx - r, cy - r, cx + r, cy + r], outline=INK, width=2 * S)
 
 
-def table_motif(base: Image.Image):
-    """Three flags at one table: the summit, drawn rather than photographed."""
-    s = S
+# ---------------------------------------------------------------- pictures
 
-    def box(x0, y0, x1, y1):
-        return [x0 * s, y0 * s, x1 * s, y1 * s]
 
+def picture(base: Image.Image, box, kind: str):
+    """Draw one story's picture inside `box`, in final-image coordinates."""
+    x0, y0, x1, y1 = box
+    w, h = x1 - x0, y1 - y0
+    cx, cy = x0 + w / 2, y0 + h / 2
     d = ImageDraw.Draw(base)
-    for x in (300, 700):  # table legs
-        d.rectangle(box(x, 548, x + 14, 580), fill=INK)
-    d.rectangle(box(262, 520, 762, 550), fill=INK)  # table top
-    d.rectangle(box(250, 514, 774, 522), fill=GREY)  # its far edge, catching the light
-    for x in (362, 512, 662):  # place settings, one under each flag
-        d.rectangle(box(x - 34, 532, x + 34, 538), fill=PAPER)
-    for x, which in ((362, "us"), (512, "ru"), (662, "cn")):
-        disc_flag(base, x * s, 470 * s, 40 * s, which)
 
+    def rect(ax, ay, bx, by, **kw):
+        d.rectangle([ax * S, ay * S, bx * S, by * S], **kw)
 
-def icon(draw, x, y, size, kind):
-    """Draw one pictogram inside the square (x, y, size)."""
-    if kind == "shield":
-        w = size
-        pts = [(x + w * 0.5, y), (x + w, y + w * 0.12), (x + w, y + w * 0.5),
-               (x + w * 0.5, y + w), (x, y + w * 0.5), (x, y + w * 0.12)]
-        draw.polygon(pts, outline=INK, width=3 * S)
-        star(draw, x + w * 0.5, y + w * 0.48, w * 0.3, RED)
+    def line(a, b, **kw):
+        d.line([a[0] * S, a[1] * S, b[0] * S, b[1] * S], **kw)
+
+    def ell(ax, ay, bx, by, **kw):
+        d.ellipse([ax * S, ay * S, bx * S, by * S], **kw)
+
+    def poly(pts, **kw):
+        d.polygon([(p[0] * S, p[1] * S) for p in pts], **kw)
+
+    def flag(ax, ay, r, which):
+        # disc_flag paints in canvas pixels, so scale the final-image position
+        disc_flag(base, ax * S, ay * S, r * S, which)
+
+    def badge(ax, ay, r, fill):
+        rosette(d, ax * S, ay * S, r * S, fill)
+
+    def burst(ax, ay, r, fill):
+        star(d, ax * S, ay * S, r * S, fill)
+
+    if kind == "table":
+        # three flags at one table: the summit itself
+        rect(x0 + w * 0.04, y0 + h * 0.66, x1 - w * 0.04, y0 + h * 0.79, fill=INK)
+        rect(x0 + w * 0.04, y0 + h * 0.62, x1 - w * 0.04, y0 + h * 0.67, fill=GREY)
+        for fx in (0.16, 0.84):
+            rect(x0 + w * fx - 7, y0 + h * 0.79, x0 + w * fx + 7, y0 + h * 0.99, fill=INK)
+        for fx in (0.22, 0.5, 0.78):
+            rect(x0 + w * fx - 26, y0 + h * 0.70, x0 + w * fx + 26, y0 + h * 0.73, fill=PAPER)
+        for fx, which in ((0.22, "us"), (0.5, "ru"), (0.78, "cn")):
+            flag(x0 + w * fx, y0 + h * 0.33, w * 0.15, which)
+    elif kind == "flags_eu_ua":
+        # an alliance: two flags over a shield
+        poly([(cx, y0 + h * 0.02), (x1 - w * 0.05, y0 + h * 0.22),
+              (x1 - w * 0.05, y0 + h * 0.6), (cx, y1),
+              (x0 + w * 0.05, y0 + h * 0.6), (x0 + w * 0.05, y0 + h * 0.22)],
+             outline=GREY, width=4 * S)
+        flag(x0 + w * 0.32, cy - h * 0.08, w * 0.19, "eu")
+        flag(x0 + w * 0.68, cy + h * 0.06, w * 0.19, "ua")
+    elif kind == "flags_ng_badge":
+        flag(x0 + w * 0.34, cy + h * 0.06, w * 0.2, "ng")
+        badge(x0 + w * 0.62, cy - h * 0.08, w * 0.18, INK)
     elif kind == "strike":
-        # a skyline, a red burst over it and a dashed missile path coming in
-        for i, h in enumerate((0.34, 0.58, 0.44, 0.78)):
-            bx = x + size * (0.06 + i * 0.24)
-            draw.rectangle([bx, y + size * (1 - h), bx + size * 0.17, y + size], fill=INK)
-        for t in range(9):
-            t0, t1 = t / 9, (t + 0.6) / 9
-            draw.line([(x + size * (0.02 + 0.5 * t0), y + size * (0.16 - 0.1 * t0)),
-                       (x + size * (0.02 + 0.5 * t1), y + size * (0.16 - 0.1 * t1))],
-                      fill=RED, width=3 * S)
-        star(draw, x + size * 0.56, y + size * 0.12, size * 0.16, RED)
+        # a city under a missile: three towers, a missile in flight, a burst on it
+        for fx, fh in ((0.52, 0.9), (0.66, 0.66), (0.8, 0.5)):
+            rect(x0 + w * fx, y1 - h * fh, x0 + w * (fx + 0.11), y1, fill=INK)
+        mbx, mby = x0 + w * 0.3, y0 + h * 0.42
+        poly([(mbx, mby - h * 0.07), (mbx + w * 0.16, mby + h * 0.09),
+              (mbx + w * 0.02, mby + h * 0.05)], fill=RED)
+        rect(mbx + w * 0.06, mby + h * 0.02, mbx + w * 0.13, mby + h * 0.05, fill=RED)
+        for t in range(7):
+            t0, t1 = t / 7, (t + 0.55) / 7
+            line((x0 + w * (0.02 + 0.26 * t0), y0 + h * (0.62 - 0.2 * t0)),
+                 (x0 + w * (0.02 + 0.26 * t1), y0 + h * (0.62 - 0.2 * t1)),
+                 fill=INK, width=3 * S)
+        burst(x0 + w * 0.57, y0 + h * 0.3, w * 0.12, RED)
     elif kind == "cyclone":
-        cx, cy = x + size * 0.5, y + size * 0.46
+        ccx, ccy = x0 + w * 0.42, cy - h * 0.05
         for arm in (0, math.pi):
             pts = []
-            for step in range(96):
-                t = step / 95 * 2.6 * math.pi
-                rad = size * (0.06 + 0.19 * t / (2.6 * math.pi))
-                ang = arm + t
-                pts.append((cx + rad * math.cos(ang), cy + rad * math.sin(ang)))
-            draw.line(pts, fill=INK, width=3 * S, joint="curve")
-        draw.ellipse([cx - size * 0.05, cy - size * 0.05, cx + size * 0.05, cy + size * 0.05],
-                     fill=RED)
-        for i in range(3):  # sea, hatched under the storm
-            yy = y + size * (0.86 + i * 0.05)
-            draw.line([(x + size * 0.08, yy), (x + size * 0.42, yy)], fill=RED, width=2 * S)
-            draw.line([(x + size * 0.52, yy), (x + size * 0.92, yy)], fill=GREY, width=2 * S)
+            for step in range(110):
+                t = step / 109 * 2.5 * math.pi
+                rad = w * (0.045 + 0.17 * t / (2.5 * math.pi))
+                a = arm + t
+                pts.append((ccx + rad * math.cos(a), ccy + rad * math.sin(a)))
+            d.line([(p[0] * S, p[1] * S) for p in pts], fill=INK, width=4 * S, joint="curve")
+        ell(ccx - w * 0.04, ccy - w * 0.04, ccx + w * 0.04, ccy + w * 0.04, fill=RED)
+        for i in range(3):  # the sea under the storm
+            yy = y1 - h * (0.26 - i * 0.08)
+            line((x0 + w * 0.06, yy), (x0 + w * 0.42, yy), fill=RED, width=3 * S)
+            line((x0 + w * 0.54, yy), (x0 + w * 0.94, yy), fill=GREY, width=3 * S)
     elif kind == "chart":
-        for i, h in enumerate((0.26, 0.44, 0.63, 0.86)):
-            bx = x + size * (0.06 + i * 0.24)
-            draw.rectangle([bx, y + size * (1 - h), bx + size * 0.16, y + size],
-                           fill=RED if i == 3 else INK)
-        draw.line([(x + size * 0.05, y + size * 0.8), (x + size * 0.95, y + size * 0.12)],
-                  fill=GREY, width=2 * S)
+        for i, fh in enumerate((0.28, 0.48, 0.68, 0.92)):
+            bx = x0 + w * (0.1 + i * 0.21)
+            rect(bx, y1 - h * fh, bx + w * 0.13, y1, fill=RED if i == 3 else INK)
+        line((x0 + w * 0.06, y1 - h * 0.2), (x0 + w * 0.94, y0 + h * 0.12), fill=GREY,
+             width=3 * S)
+    elif kind == "controller":
+        # a game controller: a body, two grips, a d-pad and two buttons
+        rect(x0 + w * 0.1, cy - h * 0.24, x1 - w * 0.1, cy + h * 0.24, fill=INK)
+        for fx in (0.14, 0.86):
+            bx = x0 + w * fx
+            ell(bx - w * 0.14, cy - h * 0.06, bx + w * 0.14, cy + h * 0.46, fill=INK)
+            ell(bx - w * 0.07, cy + h * 0.04, bx + w * 0.07, cy + h * 0.34, fill=PAPER)
+        rect(x0 + w * 0.28, cy - h * 0.06, x0 + w * 0.46, cy + h * 0.06, fill=PAPER)
+        rect(x0 + w * 0.34, cy - h * 0.18, x0 + w * 0.4, cy + h * 0.18, fill=PAPER)
+        for i, fx in enumerate((0.62, 0.72)):
+            ell(x0 + w * fx - w * 0.055, cy - h * 0.12 + i * h * 0.18,
+                x0 + w * fx + w * 0.055, cy + h * 0.06 + i * h * 0.18, fill=RED)
 
 
-# ------------------------------------------------------------------- page
+# -------------------------------------------------------------------- page
 
 
-def tile_pos(idx: int) -> tuple[float, float]:
-    """Where tile `idx` starts, on the two-column grid."""
-    return MARGIN + (idx % 2) * (COL_W + GUTTER), TILE_TOP + (idx // 2) * TILE_STEP
+def panel_pos(idx: int) -> tuple[float, float]:
+    """Where the story panel `idx` starts, on its three-column grid."""
+    return (MARGIN + (idx % COLS) * (COL_W + GUTTER),
+            GRID_TOP + (idx // COLS) * ROW_STEP)
 
 
 def draw_page() -> Image.Image:
     shapes = Image.new("RGB", (W * S, W * S), PAPER)
-    sd = ImageDraw.Draw(shapes)
-    table_motif(shapes)
-    for idx, (_label, _headline, _line, kind) in enumerate(TILES):
-        tx, ty = tile_pos(idx)
-        icon(sd, (tx + 8) * S, (ty - 2) * S, ICON * S, kind)
+    picture(shapes, LEAD_BOX, "table")
+    for idx, (_k, _h, _l, kind) in enumerate(PANELS):
+        px, py = panel_pos(idx)
+        picture(shapes, (px, py, px + COL_W, py + PIC_H), kind)
 
     page = shapes.resize((W, W), Image.LANCZOS)
     d = ImageDraw.Draw(page)
@@ -273,39 +357,37 @@ def draw_page() -> Image.Image:
     text(d, (W / 2, 128), EDITION, font(SANS_BOLD, 30), fill=PAPER, spacing=3, anchor="ma")
     text(d, (W - MARGIN - 4, 178), STANDFIRST, font(SANS, 13), fill=MUTED, anchor="ra")
 
-    # the lead story
-    text(d, (MARGIN, 192), LEAD["kicker"], font(SANS_BOLD, 15), fill=RED, spacing=3)
-    y = 216
+    # the lead story: picture left, copy right
+    tx = LEAD_TEXT_X
+    text(d, (tx, 208), LEAD["kicker"], font(SANS_BOLD, 15), fill=RED, spacing=3)
+    y = 232
     for line in LEAD["headline"]:
-        d.text((MARGIN, y), line, font=font(SERIF_BOLD, 74), fill=INK)
-        y += 76
-    block(d, (MARGIN, y + 18), LEAD["deck"], font(SERIF, 24), W - 2 * MARGIN, 28, MUTED)
+        d.text((tx, y), line, font=font(SERIF_BOLD, 58), fill=INK)
+        y += 60
+    block(d, (tx, y + 16), LEAD["deck"], font(SERIF, 21), W - MARGIN - tx, 25, MUTED)
 
-    # rules: double under the lead, then the grid the four stories sit on
-    d.line([(MARGIN, 592), (W - MARGIN, 592)], fill=INK, width=1)
-    d.line([(MARGIN, 596), (W - MARGIN, 596)], fill=INK, width=3)
-    d.line([(MARGIN + COL_W + GUTTER / 2, 608), (MARGIN + COL_W + GUTTER / 2, 890)],
-           fill=GREY, width=1)
-    d.line([(MARGIN, 744), (W - MARGIN, 744)], fill=GREY, width=1)
+    d.line([(MARGIN, 430), (W - MARGIN, 430)], fill=INK, width=3)
 
-    for idx, (label, headline, line, _kind) in enumerate(TILES):
-        tx, ty = tile_pos(idx)
-        text(d, (tx + TEXT_X, ty), label, font(SANS_BOLD, 12), fill=RED, spacing=2)
-        head_font = font(SERIF_BOLD, HEAD_SIZE)
-        if head_font.getlength(headline) > COL_W - 120:
-            raise ValueError(f"headline is too wide for its column: {headline!r}")
-        d.text((tx + TEXT_X, ty + 20), headline, font=head_font, fill=INK)
-        block(d, (tx + TEXT_X, ty + 60), line, font(SERIF, 18), COL_W - 126, 22, MUTED)
+    # six story panels, each carried by its own picture
+    for idx, (kicker, headline, line_, _kind) in enumerate(PANELS):
+        px, py = panel_pos(idx)
+        text(d, (px, py + TEXT_TOP), kicker, font(SANS_BOLD, 11), fill=RED, spacing=2)
+        head_font = font(SERIF_BOLD, PANEL_HEAD)
+        if head_font.getlength(headline) > COL_W:
+            raise ValueError(f"headline is too wide for its panel: {headline!r}")
+        d.text((px, py + TEXT_TOP + 18), headline, font=head_font, fill=INK)
+        block(d, (px, py + TEXT_TOP + 48), line_, font(SERIF, PANEL_BODY), COL_W, 17, MUTED)
 
-    # the strip at the foot
-    strip = (W - 2 * MARGIN) / 3
-    d.line([(MARGIN, 908), (W - MARGIN, 908)], fill=INK, width=1)
-    for idx, (label, line) in enumerate(TICKER):
-        tx = MARGIN + idx * strip
-        if idx:
-            d.line([(tx - 16, 924), (tx - 16, 1000)], fill=GREY, width=1)
-        text(d, (tx, 930), label, font(SANS_BOLD, 12), fill=RED, spacing=2)
-        block(d, (tx, 948), line, font(SERIF, 17), strip - 24, 20, INK)
+    # one line of briefs at the foot
+    lab_font = font(SANS_BOLD, 11)
+    d.line([(MARGIN, 968), (W - MARGIN, 968)], fill=GREY, width=1)
+    text(d, (MARGIN, 982), "ALSO TODAY", lab_font, fill=RED, spacing=2)
+    x = MARGIN + sum(lab_font.getlength(c) for c in "ALSO TODAY") + 2 * 9 + 22
+    for label, brief in BRIEFS:
+        text(d, (x, 982), label, lab_font, fill=INK, spacing=2)
+        x += sum(lab_font.getlength(c) for c in label) + 2 * (len(label) - 1) + 12
+        d.text((x, 979), brief, font=font(SERIF, 15), fill=MUTED)
+        x += font(SERIF, 15).getlength(brief) + 22
 
     return page
 
