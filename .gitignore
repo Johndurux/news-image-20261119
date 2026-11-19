@@ -1,0 +1,9 @@
+# scratch and local working copies, never part of the entry
+*.tar.gz
+*.zip
+out/
+output/
+__pycache__/
+*.pyc
+.venv/
+venv/
