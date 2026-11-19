@@ -108,6 +108,10 @@ BRIEFS = [
                    "with the US."),
 ]
 
+# a word inside the picture, for the stories whose picture needs one to read
+# unmistakably (the ticker the shares trade as, and the number of the game)
+PICTURE_TAGS = {3: "ANT", 4: "VI"}
+
 MARGIN = 46
 COLS = 3
 COL_W = 310
@@ -283,19 +287,35 @@ def picture(base: Image.Image, box, kind: str):
         flag(x0 + w * 0.34, cy + h * 0.06, w * 0.2, "ng")
         badge(x0 + w * 0.62, cy - h * 0.08, w * 0.18, INK)
     elif kind == "strike":
-        # a city under a missile: three towers, a missile in flight, a burst on it
-        for fx, fh in ((0.52, 0.9), (0.66, 0.66), (0.8, 0.5)):
-            rect(x0 + w * fx, y1 - h * fh, x0 + w * (fx + 0.11), y1, fill=INK)
-        mbx, mby = x0 + w * 0.3, y0 + h * 0.42
-        poly([(mbx, mby - h * 0.07), (mbx + w * 0.16, mby + h * 0.09),
-              (mbx + w * 0.02, mby + h * 0.05)], fill=RED)
-        rect(mbx + w * 0.06, mby + h * 0.02, mbx + w * 0.13, mby + h * 0.05, fill=RED)
-        for t in range(7):
-            t0, t1 = t / 7, (t + 0.55) / 7
-            line((x0 + w * (0.02 + 0.26 * t0), y0 + h * (0.62 - 0.2 * t0)),
-                 (x0 + w * (0.02 + 0.26 * t1), y0 + h * (0.62 - 0.2 * t1)),
+        # a city under a missile: a windowed skyline on the ground, a cruise
+        # missile in flight with its trail, and a burst over the tallest tower
+        rect(x0 + w * 0.04, y1 - 3, x1 - w * 0.04, y1, fill=INK)
+        for fx, fh in ((0.5, 0.86), (0.65, 0.6), (0.79, 0.46)):
+            top = y1 - h * fh
+            rect(x0 + w * fx, top, x0 + w * (fx + 0.12), y1 - 2, fill=INK)
+            for row in range(4):
+                wy = top + h * 0.06 + row * h * (fh - 0.14) / 4
+                for col in range(2):
+                    wx = x0 + w * fx + w * (0.025 + col * 0.05)
+                    rect(wx, wy, wx + w * 0.03, wy + h * 0.055, fill=PAPER)
+        mx, my = x0 + w * 0.24, y0 + h * 0.3
+        rect(mx, my, mx + w * 0.22, my + h * 0.08, fill=RED)
+        poly([(mx + w * 0.22, my), (mx + w * 0.22, my + h * 0.08),
+              (mx + w * 0.3, my + h * 0.04)], fill=RED)
+        poly([(mx, my), (mx, my + h * 0.08), (mx - w * 0.04, my + h * 0.08),
+              (mx - w * 0.04, my - h * 0.03)], fill=RED)
+        for t in range(6):
+            t0, t1 = t / 6, (t + 0.5) / 6
+            line((x0 + w * (0.03 + 0.22 * t0), y0 + h * (0.66 - 0.28 * t0)),
+                 (x0 + w * (0.03 + 0.22 * t1), y0 + h * (0.66 - 0.28 * t1)),
                  fill=INK, width=3 * S)
-        burst(x0 + w * 0.57, y0 + h * 0.3, w * 0.12, RED)
+        bx, by = x0 + w * 0.56, y0 + h * 0.3
+        ell(bx - w * 0.075, by - h * 0.155, bx + w * 0.075, by + h * 0.155, fill=RED)
+        for k in range(6):
+            a = k * math.pi / 3
+            line((bx + w * 0.085 * math.cos(a), by + h * 0.17 * math.sin(a)),
+                 (bx + w * 0.135 * math.cos(a), by + h * 0.24 * math.sin(a)),
+                 fill=RED, width=3 * S)
     elif kind == "cyclone":
         ccx, ccy = x0 + w * 0.42, cy - h * 0.05
         for arm in (0, math.pi):
@@ -375,6 +395,12 @@ def draw_page() -> Image.Image:
         head_font = font(SERIF_BOLD, PANEL_HEAD)
         if head_font.getlength(headline) > COL_W:
             raise ValueError(f"headline is too wide for its panel: {headline!r}")
+        tag = PICTURE_TAGS.get(idx)
+        if tag:
+            tag_font = font(SANS_BOLD, 13)
+            tw = tag_font.getlength(tag) + 14
+            d.rectangle([px + 8, py + PIC_H - 26, px + 8 + tw, py + PIC_H - 6], fill=INK)
+            d.text((px + 15, py + PIC_H - 23), tag, font=tag_font, fill=PAPER)
         d.text((px, py + TEXT_TOP + 18), headline, font=head_font, fill=INK)
         block(d, (px, py + TEXT_TOP + 48), line_, font(SERIF, PANEL_BODY), COL_W, 17, MUTED)
 
